@@ -1,0 +1,45 @@
+image: alpine:latest
+
+stages:
+  - prepare
+  - build:code
+  - test
+  - review
+  - deploy
+  - tag
+
+Build Code:
+  stage: build:code
+  image: node:12.22.1-alpine3.12
+  before_script:
+    - export CI=false
+  script:
+    - npm install
+    - npm run build
+  cache:
+    key: node_cache
+    paths:
+      - node_modules
+  artifacts:
+    paths:
+      - build
+    expire_in: 361 seconds
+  timeout: 10m
+  only:
+    - int
+    - trung
+  tags:
+    - fargate-runner
+  dependencies: []
+
+Deploy INT:
+  image: jmango360/cloud-deploy:1.0
+  stage: deploy
+  script:
+    - aws s3 sync ./build/ s3://shimnit-portal-frontend-dev --delete
+    - aws cloudfront create-invalidation --distribution-id E2PUPOPAF5SCLY --paths "/*"
+  only:
+    - int
+    - trung
+  tags:
+    - int-runner
